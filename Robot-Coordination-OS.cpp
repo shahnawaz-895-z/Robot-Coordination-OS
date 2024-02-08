@@ -1,11 +1,9 @@
-#include <iostream>
+#include <stdio.h>
 #include <pthread.h>
-#include <cstdlib>
-#include <ctime>
+#include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
-#include <cmath>
-
-using namespace std;
+#include <math.h>
 
 #define NUM_ROBOTS 50
 #define ROOM_WIDTH 100
@@ -28,7 +26,7 @@ struct Robot {
 
 double Total_width = 0.0;
 
-Robot robots[NUM_ROBOTS];
+struct Robot robots[NUM_ROBOTS];
 
 // Function to calculate accuracy based on distance
 double calculateAccuracy(int distance) {
@@ -42,18 +40,18 @@ double calculateAccuracy(int distance) {
 }
 
 // Function to check if two robots are neighbors
-bool isNeighbor(const Robot& robot1, const Robot& robot2) {
-    int distance = abs(robot1.x - robot2.x) + abs(robot1.y - robot2.y);
+int isNeighbor(const struct Robot *robot1, const struct Robot *robot2) {
+    int distance = abs(robot1->x - robot2->x) + abs(robot1->y - robot2->y);
     return distance <= NEIGHBOR_DISTANCE;
 }
 
 // Function to compute average estimate based on neighbors
-void computeAverageEstimate(Robot* robot) {
+void computeAverageEstimate(struct Robot *robot) {
     double sum = robot->estimatedWidth;
     int count = 1;
 
     for (int i = 0; i < NUM_ROBOTS; ++i) {
-        if (i != robot->id && isNeighbor(*robot, robots[i])) {
+        if (i != robot->id && isNeighbor(robot, &robots[i])) {
             sum += robots[i].estimatedWidth;
             count++;
         }
@@ -64,7 +62,7 @@ void computeAverageEstimate(Robot* robot) {
 
 // Function to simulate the behavior of a robot
 void* robotBehavior(void* arg) {
-    Robot* robot = (Robot*)arg;
+    struct Robot *robot = (struct Robot *)arg;
 
     for (int i = 0; i < 10; ++i) {
         int distanceToExit = abs(robot->x - (ROOM_WIDTH / 2)) + abs(robot->y - ROOM_HEIGHT);
@@ -75,22 +73,18 @@ void* robotBehavior(void* arg) {
 
         pthread_mutex_lock(&robot_mutex);
 
-       cout << "Robot " << robot->id << " at (" << robot->x << ", " << robot->y
-            << ") estimates exit width: " << robot->estimatedWidth
-            << ", True width: " << trueWidth
-             << ", Absolute Difference: " << fabs(robot->estimatedWidth - trueWidth) << endl;
+        printf("Robot %d at (%d, %d) estimates exit width: %.2f, True width: %.2f, Absolute Difference: %.2f\n",
+               robot->id, robot->x, robot->y, robot->estimatedWidth, trueWidth, fabs(robot->estimatedWidth - trueWidth));
 
         for (int j = 0; j < NUM_ROBOTS; ++j) {
-            if (j != robot->id && isNeighbor(*robot, robots[j])) {
+            if (j != robot->id && isNeighbor(robot, &robots[j])) {
                 robots[j].estimatedWidth = estimation;  // Update estimation of neighbors
             }
         }
-        
-        cout << "Robot " << robot->id << " updated its own estimated width to " << robot->estimatedWidth << endl;
-       
-        computeAverageEstimate(robot);
 
-        
+        printf("Robot %d updated its own estimated width to %.2f\n", robot->id, robot->estimatedWidth);
+
+        computeAverageEstimate(robot);
 
         pthread_mutex_unlock(&robot_mutex);
 
@@ -106,18 +100,16 @@ void* globalAggregation(void* arg) {
 
     pthread_mutex_lock(&total_width_mutex);
     Total_width = 0.0;
-    int count =0;
+    int count = 0;
     for (int i = 0; i < NUM_ROBOTS; ++i) {
-       
-        if(robots[i].estimatedWidth !=0)
-        {
-           Total_width += robots[i].estimatedWidth;
-           count++;
+        if (robots[i].estimatedWidth != 0) {
+            Total_width += robots[i].estimatedWidth;
+            count++;
         }
     }
 
     double averageWidth = Total_width / count;
-    cout << "\nGlobal Aggregation: Total Width = " << Total_width << ", Average Width = " << averageWidth << endl;
+    printf("\nGlobal Aggregation: Total Width = %.2f, Average Width = %.2f\n", Total_width, averageWidth);
 
     pthread_mutex_unlock(&total_width_mutex);
 
@@ -125,7 +117,7 @@ void* globalAggregation(void* arg) {
 }
 
 int main() {
-    srand(time(nullptr));
+    srand(time(NULL));
 
     pthread_t threads[NUM_ROBOTS];
     pthread_t aggregationThread;
@@ -135,7 +127,7 @@ int main() {
 
     // Initialize robots
     for (int i = 0; i < NUM_ROBOTS; ++i) {
-        robots[i] = {i, rand() % ROOM_WIDTH, rand() % ROOM_HEIGHT, 0.0};
+        robots[i] = (struct Robot){i, rand() % ROOM_WIDTH, rand() % ROOM_HEIGHT, 0.0};
         pthread_create(&threads[i], NULL, robotBehavior, (void*)&robots[i]);
     }
 
@@ -152,3 +144,4 @@ int main() {
 
     return 0;
 }
+
